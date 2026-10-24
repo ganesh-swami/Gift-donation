@@ -16,6 +16,7 @@ const FUNNEL = [
   "donate_link_clicked",
   "donation_reported",
   "treaty_completed",
+  "certificate_viewed",
 ]
 
 export default async function Page() {

@@ -29,7 +29,7 @@ export function Logo({ className }: { className?: string }) {
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md print:hidden">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
         <Logo />
         <nav className="flex items-center gap-1 text-sm sm:gap-3">
@@ -59,7 +59,7 @@ export function SiteHeader() {
 
 export function SiteFooter() {
   return (
-    <footer className="bg-forest-deep text-primary-foreground dark:text-foreground">
+    <footer className="bg-forest-deep text-primary-foreground dark:text-foreground print:hidden">
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 sm:grid-cols-[1.5fr_1fr_1fr]">
         <div className="flex flex-col gap-3">
           <Logo className="[&>span:first-child]:bg-gold [&>span:first-child]:text-forest-deep" />

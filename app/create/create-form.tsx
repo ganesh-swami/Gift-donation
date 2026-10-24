@@ -1,13 +1,16 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 
 import { CharityPicker } from "@/components/charity-picker"
+import { ModePicker } from "@/components/mode-picker"
 import { OccasionPicker } from "@/components/occasion-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+
+import type { Mode } from "@/lib/modes"
 
 import { createTreatyAction, type CreateState } from "./actions"
 
@@ -70,6 +73,8 @@ export function CreateForm() {
     {}
   )
   const v = state.values ?? {}
+  const [mode, setMode] = useState<Mode>((v.mode as Mode) ?? "both")
+  const both = mode === "both"
   const fe = state.fieldErrors ?? {}
 
   return (
@@ -153,11 +158,25 @@ export function CreateForm() {
 
       <Section
         n={3}
-        title="How much would you each give?"
+        title="Who will donate?"
+        hint="Both of you, or just one. For a birthday or a custom occasion, one person giving is perfectly fine."
+      >
+        <ModePicker value={mode} onChange={setMode} />
+      </Section>
+
+      <Section
+        n={4}
+        title={
+          both ? "How much would you each give?" : "How much will be donated?"
+        }
         hint="About what you would have spent on a gift."
       >
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Amount each (USD)" name="amount" errors={fe.amount}>
+          <Field
+            label={both ? "Amount each (USD)" : "Donation amount (USD)"}
+            name="amount"
+            errors={fe.amount}
+          >
             <div className="relative">
               <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-muted-foreground">
                 $
@@ -195,16 +214,27 @@ export function CreateForm() {
         </div>
       </Section>
 
-      <Section
-        n={4}
-        title="Pick a charity for them"
-        hint="They will donate your agreed amount here. They will choose one for you."
-      >
-        <CharityPicker defaultValue={v.charityId} />
-        {fe.charityId && (
-          <p className="mt-2 text-xs text-destructive">{fe.charityId[0]}</p>
-        )}
-      </Section>
+      {mode !== "creator" && (
+        <Section
+          n={5}
+          title="Pick a charity for them"
+          hint={
+            both
+              ? "They will donate your agreed amount here. They will choose one for you."
+              : "They will donate your agreed amount to this charity."
+          }
+        >
+          <CharityPicker defaultValue={v.charityId} />
+          {fe.charityId && (
+            <p className="mt-2 text-xs text-destructive">{fe.charityId[0]}</p>
+          )}
+        </Section>
+      )}
+      {mode === "creator" && (
+        <p className="rounded-2xl bg-muted p-4 text-sm">
+          They will choose the charity when they accept your Treaty.
+        </p>
+      )}
 
       {/* honeypot */}
       <input

@@ -14,6 +14,7 @@ export type EventName =
   | "charity_chosen"
   | "donate_link_clicked"
   | "donation_reported"
+  | "certificate_viewed"
   | "treaty_completed"
 
 export async function track(

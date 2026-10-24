@@ -14,6 +14,7 @@ const input = {
   recipientName: "Ben",
   recipientEmail: "ben@example.com",
   occasion: "birthday",
+  mode: "both" as const,
   amount: 2500,
   charityId: "unicef",
 }
@@ -63,5 +64,31 @@ describe("treaty flow", () => {
     await respond(t.recipientToken, { decision: "decline" })
     expect((await getTreatyByToken(t.creatorToken))?.status).toBe("declined")
     await expect(reportDonation(t.creatorToken)).rejects.toThrow()
+  })
+
+  it("lets only the creator donate when mode is creator", async () => {
+    const t = await createTreaty({
+      ...input,
+      mode: "creator",
+      charityId: undefined,
+    })
+    await expect(
+      respond(t.recipientToken, { decision: "accept" })
+    ).rejects.toThrow() // recipient must pick the charity
+    await respond(t.recipientToken, { decision: "accept", charityId: "wwf" })
+    await expect(reportDonation(t.recipientToken)).rejects.toThrow()
+    const view = await getTreatyByToken(t.creatorToken)
+    expect(view?.me.donates).toBe(true)
+    expect(view?.other.donates).toBe(false)
+    await reportDonation(t.creatorToken)
+    expect((await getTreatyByToken(t.creatorToken))?.status).toBe("completed")
+  })
+
+  it("lets only the recipient donate when mode is recipient", async () => {
+    const t = await createTreaty({ ...input, mode: "recipient" })
+    await respond(t.recipientToken, { decision: "accept" }) // no pick needed
+    await expect(reportDonation(t.creatorToken)).rejects.toThrow()
+    await reportDonation(t.recipientToken)
+    expect((await getTreatyByToken(t.recipientToken))?.status).toBe("completed")
   })
 })

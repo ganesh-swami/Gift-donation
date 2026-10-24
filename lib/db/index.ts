@@ -16,7 +16,7 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS treaties (
     id TEXT PRIMARY KEY, occasion TEXT NOT NULL, occasion_label TEXT,
     currency TEXT NOT NULL DEFAULT 'USD', proposed_amount INTEGER NOT NULL,
-    agreed_amount INTEGER, message TEXT, status TEXT NOT NULL DEFAULT 'pending',
+    agreed_amount INTEGER, message TEXT, mode TEXT NOT NULL DEFAULT 'both', status TEXT NOT NULL DEFAULT 'pending',
     created_at INTEGER NOT NULL, responded_at INTEGER, completed_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS participants (
     id TEXT PRIMARY KEY, treaty_id TEXT NOT NULL REFERENCES treaties(id),
@@ -34,6 +34,14 @@ let ready: Promise<unknown> | undefined
 
 /** Creates tables on first use, so no separate migration step is needed. */
 export function ensureSchema() {
-  ready ??= client.batch(DDL, "write")
+  ready ??= (async () => {
+    await client.batch(DDL, "write")
+    // Databases created before the mode column existed.
+    await client
+      .execute(
+        "ALTER TABLE treaties ADD COLUMN mode TEXT NOT NULL DEFAULT 'both'"
+      )
+      .catch(() => {})
+  })()
   return ready
 }

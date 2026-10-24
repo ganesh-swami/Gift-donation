@@ -13,10 +13,14 @@ export function RespondForm({
   token,
   creatorName,
   proposedDollars,
+  needsCharity,
+  meDonates,
 }: {
   token: string
   creatorName: string
   proposedDollars: number
+  needsCharity: boolean
+  meDonates: boolean
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     respondAction.bind(null, token),
@@ -40,7 +44,11 @@ export function RespondForm({
         </p>
       )}
       <div className="flex max-w-xs flex-col gap-1.5">
-        <Label htmlFor="amount">Amount you will donate (USD)</Label>
+        <Label htmlFor="amount">
+          {meDonates
+            ? "Amount you will donate (USD)"
+            : `Amount ${creatorName} will donate (USD)`}
+        </Label>
         <div className="relative">
           <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-muted-foreground">
             $
@@ -59,15 +67,17 @@ export function RespondForm({
           />
         </div>
         <p className="text-xs text-muted-foreground">
-          Whatever you accept becomes the agreed amount for both of you.
+          Whatever you accept becomes the agreed amount.
         </p>
       </div>
-      <fieldset className="flex flex-col gap-3">
-        <legend className="mb-1 text-sm font-medium">
-          Which charity should {creatorName} donate to?
-        </legend>
-        <CharityPicker />
-      </fieldset>
+      {needsCharity && (
+        <fieldset className="flex flex-col gap-3">
+          <legend className="mb-1 text-sm font-medium">
+            Which charity should {creatorName} donate to?
+          </legend>
+          <CharityPicker />
+        </fieldset>
+      )}
       <div className="flex flex-wrap gap-3">
         <Button
           type="submit"

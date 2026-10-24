@@ -2,7 +2,10 @@
 
 import { useActionState } from "react"
 
-import { Button } from "@/components/ui/button"
+import Link from "next/link"
+
+import { Button, buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 import { reportDonationAction, type ActionState } from "../actions"
 
@@ -12,12 +15,14 @@ export function DonatePanel({
   charityName,
   donateUrl,
   donated,
+  certificateHref,
 }: {
   token: string
   amountLabel: string
   charityName: string
   donateUrl: string
   donated: boolean
+  certificateHref: string
 }) {
   const [state, action, pending] = useActionState<ActionState>(
     reportDonationAction.bind(null, token),
@@ -30,10 +35,21 @@ export function DonatePanel({
         Donate {amountLabel} to {charityName}
       </h2>
       {donated ? (
-        <p className="rounded-2xl bg-primary/10 p-4 text-sm text-primary">
-          Thank you. You have marked your donation as done. We will show the
-          outcome once the other person has done the same.
-        </p>
+        <>
+          <p className="rounded-2xl bg-primary/10 p-4 text-sm text-primary">
+            Thank you. You have marked your donation as done. We will show the
+            outcome once the other person has done the same.
+          </p>
+          <Link
+            href={certificateHref}
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "h-12 w-fit px-8 text-base"
+            )}
+          >
+            Get your certificate
+          </Link>
+        </>
       ) : (
         <>
           <p className="text-sm leading-relaxed text-muted-foreground">

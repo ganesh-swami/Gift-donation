@@ -4,10 +4,11 @@ import { and, count, eq, gt, isNull } from "drizzle-orm"
 
 import { db, ensureSchema } from "./db"
 import { events, participants, treaties } from "./db/schema"
+import { donorRoles, type Mode, type Role } from "./modes"
 import { generateToken, hashToken, TOKEN_PATTERN } from "./tokens"
 import { track } from "./track"
 
-export type Role = "creator" | "recipient"
+export type { Role }
 export type Status = "pending" | "accepted" | "declined" | "completed"
 
 export type CreateInput = {
@@ -17,13 +18,15 @@ export type CreateInput = {
   recipientEmail: string
   occasion: string
   occasionLabel?: string
+  mode: Mode
   amount: number // cents
-  charityId: string // picked by creator, for the recipient to donate to
+  charityId?: string // picked by creator, for the recipient to donate to
   message?: string
 }
 
 type Person = {
   name: string
+  donates: boolean
   charityId: string | null // charity this person picked for the other
   donatedAt: number | null
 }
@@ -33,6 +36,7 @@ export type TreatyView = {
   id: string
   role: Role
   status: Status
+  mode: Mode
   occasion: string
   occasionLabel: string | null
   proposedAmount: number
@@ -69,6 +73,13 @@ export async function createTreaty(input: CreateInput, ipHash?: string) {
     }
   }
 
+  // The creator only picks a charity when the other person is donating.
+  const creatorPick =
+    input.mode === "creator" ? null : (input.charityId ?? null)
+  if (input.mode !== "creator" && !creatorPick) {
+    throw new TreatyError("Pick a charity")
+  }
+
   // Ids are short, so retry on the rare collision (token_hash is unique).
   for (let attempt = 0; ; attempt++) {
     const treatyId = randomUUID()
@@ -81,6 +92,7 @@ export async function createTreaty(input: CreateInput, ipHash?: string) {
           id: treatyId,
           occasion: input.occasion,
           occasionLabel: input.occasionLabel || null,
+          mode: input.mode,
           proposedAmount: input.amount,
           message: input.message || null,
           status: "pending",
@@ -93,7 +105,7 @@ export async function createTreaty(input: CreateInput, ipHash?: string) {
           name: input.creatorName,
           email: input.creatorEmail,
           tokenHash: hashToken(creatorToken),
-          charityId: input.charityId,
+          charityId: creatorPick,
         }),
         db.insert(participants).values({
           id: randomUUID(),
@@ -105,7 +117,12 @@ export async function createTreaty(input: CreateInput, ipHash?: string) {
         }),
       ])
 
-      await track("treaty_created", { treatyId, role: "creator", ipHash })
+      await track("treaty_created", {
+        treatyId,
+        role: "creator",
+        ipHash,
+        meta: { mode: input.mode },
+      })
       return { treatyId, creatorToken, recipientToken }
     } catch (e) {
       if (attempt >= 4) throw e
@@ -137,8 +154,10 @@ async function findByToken(token: string) {
 type Found = NonNullable<Awaited<ReturnType<typeof findByToken>>>
 
 function toView(r: Found): TreatyView {
+  const donors = donorRoles(r.treaty.mode)
   const person = (p: Found["me"]): Person => ({
     name: p.name,
+    donates: donors.includes(p.role as Role),
     charityId: p.charityId,
     donatedAt: p.donatedAt,
   })
@@ -146,6 +165,7 @@ function toView(r: Found): TreatyView {
     id: r.treaty.id,
     role: r.me.role as Role,
     status: r.treaty.status as Status,
+    mode: r.treaty.mode as Mode,
     occasion: r.treaty.occasion,
     occasionLabel: r.treaty.occasionLabel,
     proposedAmount: r.treaty.proposedAmount,
@@ -208,7 +228,9 @@ export async function respond(
     return
   }
 
-  if (!input.charityId) {
+  // The recipient picks a charity only when the creator is the one donating.
+  const picksCharity = r.treaty.mode !== "recipient"
+  if (picksCharity && !input.charityId) {
     throw new TreatyError(`Pick a charity for ${r.other.name}`)
   }
   const agreed = input.amount ?? r.treaty.proposedAmount
@@ -219,16 +241,20 @@ export async function respond(
   if (res.rowsAffected === 0) {
     throw new TreatyError("This Treaty has already been answered")
   }
-  await db
-    .update(participants)
-    .set({ charityId: input.charityId })
-    .where(eq(participants.id, r.me.id))
+  if (picksCharity) {
+    await db
+      .update(participants)
+      .set({ charityId: input.charityId })
+      .where(eq(participants.id, r.me.id))
+  }
   await track("treaty_accepted", {
     treatyId: r.treaty.id,
     role: "recipient",
     meta: { amountAdjusted: agreed !== r.treaty.proposedAmount },
   })
-  await track("charity_chosen", { treatyId: r.treaty.id, role: "recipient" })
+  if (picksCharity) {
+    await track("charity_chosen", { treatyId: r.treaty.id, role: "recipient" })
+  }
 }
 
 export async function reportDonation(token: string) {
@@ -236,6 +262,10 @@ export async function reportDonation(token: string) {
   if (!r) throw new TreatyError("Treaty not found")
   if (r.treaty.status !== "accepted") {
     throw new TreatyError("This Treaty is not active")
+  }
+  const donors = donorRoles(r.treaty.mode)
+  if (!donors.includes(r.me.role as Role)) {
+    throw new TreatyError("You are not donating in this Treaty")
   }
 
   const res = await db
@@ -245,7 +275,10 @@ export async function reportDonation(token: string) {
   if (res.rowsAffected === 0) return // already reported
   await track("donation_reported", { treatyId: r.treaty.id, role: r.me.role })
 
-  if (r.other.donatedAt) {
+  const othersDone = donors.every(
+    (role) => role === r.me.role || (r.other.role === role && r.other.donatedAt)
+  )
+  if (othersDone) {
     const done = await db
       .update(treaties)
       .set({ status: "completed", completedAt: Date.now() })

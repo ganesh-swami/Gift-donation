@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import { CHARITY_IDS } from "./charities"
+import { MODES } from "./modes"
 import { OCCASIONS } from "./occasions"
 
 const name = z.string().trim().min(1, "Please enter a name").max(60)
@@ -28,13 +29,18 @@ export const createSchema = z
     recipientEmail: email,
     occasion: z.enum(OCCASIONS),
     occasionLabel: z.string().trim().max(60).optional(),
+    mode: z.enum(MODES),
     amount,
-    charityId,
+    charityId: charityId.optional(),
     message: z.string().trim().max(500).optional(),
   })
   .refine((d) => d.occasion !== "custom" || !!d.occasionLabel, {
     path: ["occasionLabel"],
     message: "Name your occasion",
+  })
+  .refine((d) => d.mode === "creator" || !!d.charityId, {
+    path: ["charityId"],
+    message: "Pick a charity",
   })
 
 export const respondSchema = z.object({

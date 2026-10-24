@@ -8,6 +8,7 @@ export const treaties = sqliteTable("treaties", {
   proposedAmount: integer("proposed_amount").notNull(), // cents
   agreedAmount: integer("agreed_amount"), // cents
   message: text("message"),
+  mode: text("mode").notNull().default("both"), // both|creator|recipient: who donates
   status: text("status").notNull().default("pending"), // pending|accepted|declined|completed
   createdAt: integer("created_at").notNull(),
   respondedAt: integer("responded_at"),
