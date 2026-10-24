@@ -416,7 +416,7 @@ export default function Page() {
             Curated causes
           </p>
           <h2 className="mt-3 max-w-xl font-heading text-4xl font-semibold tracking-tight">
-            {CHARITIES.length} trusted charities, one for every heart.
+          trusted charities, one for every heart.
           </h2>
           <div className="mt-8 flex flex-wrap gap-2.5">
             {CHARITIES.map((c) => (
