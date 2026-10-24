@@ -24,7 +24,7 @@ describe("treaty flow", () => {
   })
 
   it("rejects unknown tokens", async () => {
-    expect(await getTreatyByToken("x".repeat(43))).toBeNull()
+    expect(await getTreatyByToken("zzzzzz")).toBeNull()
     expect(await getTreatyByToken("short")).toBeNull()
   })
 

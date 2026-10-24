@@ -1,5 +1,6 @@
 import { count } from "drizzle-orm"
 
+import { PageHeading, PageShell } from "@/components/page-shell"
 import { db, ensureSchema } from "@/lib/db"
 import { events } from "@/lib/db/schema"
 
@@ -27,8 +28,8 @@ export default async function Page() {
   const declined = byName["treaty_declined"] ?? 0
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="font-heading text-3xl font-bold">Journey funnel</h1>
+    <PageShell>
+      <PageHeading title="Journey funnel" />
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
@@ -45,7 +46,9 @@ export default async function Page() {
               <tr key={name} className="border-b">
                 <td className="py-2">{name}</td>
                 <td>{n}</td>
-                <td>{i > 0 && prev > 0 ? `${Math.round((n / prev) * 100)}%` : "-"}</td>
+                <td>
+                  {i > 0 && prev > 0 ? `${Math.round((n / prev) * 100)}%` : "-"}
+                </td>
               </tr>
             )
           })}
@@ -56,6 +59,6 @@ export default async function Page() {
           </tr>
         </tbody>
       </table>
-    </div>
+    </PageShell>
   )
 }

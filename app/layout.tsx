@@ -1,12 +1,12 @@
-import type { Metadata } from "next"
-import { Geist_Mono, Outfit, Raleway } from "next/font/google"
+import type { Metadata, Viewport } from "next"
+import { Fraunces, Geist_Mono, Outfit } from "next/font/google"
 
 import "./globals.css"
 import { SiteFooter, SiteHeader } from "@/components/site-shell"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
 
-const ralewayHeading = Raleway({ subsets: ["latin"], variable: "--font-heading" })
+const heading = Fraunces({ subsets: ["latin"], variable: "--font-heading" })
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" })
 const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
 
@@ -14,6 +14,13 @@ export const metadata: Metadata = {
   title: { default: "Gift Treaty", template: "%s | Gift Treaty" },
   description:
     "Agree with someone not to buy each other gifts. Each donates what they would have spent to a charity the other chose.",
+}
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf7ef" },
+    { media: "(prefers-color-scheme: dark)", color: "#10201a" },
+  ],
 }
 
 export default function RootLayout({
@@ -30,15 +37,13 @@ export default function RootLayout({
         fontMono.variable,
         "font-sans",
         outfit.variable,
-        ralewayHeading.variable
+        heading.variable
       )}
     >
       <body className="flex min-h-svh flex-col">
         <ThemeProvider>
           <SiteHeader />
-          <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-            {children}
-          </main>
+          <main className="flex-1">{children}</main>
           <SiteFooter />
         </ThemeProvider>
       </body>

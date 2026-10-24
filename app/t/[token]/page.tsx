@@ -2,10 +2,12 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
-import { Badge } from "@/components/ui/badge"
+import { PageShell } from "@/components/page-shell"
 import { buttonVariants } from "@/components/ui/button"
 import { getCharity } from "@/lib/charities"
 import { formatMoney } from "@/lib/format"
+import { occasionEmoji, occasionName } from "@/lib/occasions"
+import { TOKEN_PATTERN } from "@/lib/tokens"
 import { getTreatyByToken } from "@/lib/treaty"
 import { cn } from "@/lib/utils"
 
@@ -20,11 +22,19 @@ export const metadata: Metadata = {
 }
 
 const STATUS_LABEL = {
-  pending: "Waiting for a reply",
+  pending: "Awaiting reply",
   accepted: "Agreed",
   declined: "Declined",
   completed: "Completed",
 } as const
+
+const STEPS = ["Proposed", "Agreed", "Donated", "Complete"]
+
+function stepIndex(status: string, bothDonatedOne: boolean) {
+  if (status === "pending" || status === "declined") return 0
+  if (status === "accepted") return bothDonatedOne ? 2 : 1
+  return 3
+}
 
 export default async function Page({
   params,
@@ -40,120 +50,213 @@ export default async function Page({
 
   const isCreator = t.role === "creator"
   const amount = t.agreedAmount ?? t.proposedAmount
-  const occasion = t.occasionLabel || t.occasion
+  const occasion = occasionName(t.occasion, t.occasionLabel)
   // Where I donate = the charity the OTHER person picked.
   const myCharity = getCharity(t.other.charityId)
   const theirCharity = getCharity(t.me.charityId)
   const showInvite =
-    isCreator && t.status === "pending" && invite && /^[A-Za-z0-9_-]{20,64}$/.test(invite)
+    isCreator &&
+    t.status === "pending" &&
+    !!invite &&
+    TOKEN_PATTERN.test(invite.toLowerCase())
+  const step = stepIndex(t.status, !!(t.me.donatedAt || t.other.donatedAt))
+
+  const people = [
+    {
+      label: "You",
+      name: t.me.name,
+      charity: myCharity,
+      donated: t.me.donatedAt,
+    },
+    {
+      label: "Them",
+      name: t.other.name,
+      charity: theirCharity,
+      donated: t.other.donatedAt,
+    },
+  ]
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <Badge variant="secondary" className="w-fit">
-          {STATUS_LABEL[t.status]}
-        </Badge>
-        <h1 className="font-heading text-3xl font-bold">
+    <PageShell>
+      {/* Hero card */}
+      <div className="hero-glow overflow-hidden rounded-[2rem] border bg-card p-7 shadow-xl shadow-primary/5 sm:p-10">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-sm tracking-wide text-muted-foreground uppercase">
+            {occasionEmoji(t.occasion)} {occasion}
+          </span>
+          <span
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-medium",
+              t.status === "declined"
+                ? "bg-destructive/10 text-destructive"
+                : "bg-primary/10 text-primary"
+            )}
+          >
+            {STATUS_LABEL[t.status]}
+          </span>
+        </div>
+        <h1 className="mt-5 font-heading text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
           {isCreator
             ? `Your Treaty with ${t.other.name}`
-            : `${t.other.name} invites you to skip gifts`}
+            : `${t.other.name} invites you to skip the gifts`}
         </h1>
-        <p className="text-muted-foreground">
-          For: {occasion}. Instead of presents, each donates{" "}
-          {formatMoney(amount)} to a charity the other chose.
+        <p className="mt-3 max-w-xl text-lg leading-relaxed text-muted-foreground">
+          Instead of presents, each of you donates{" "}
+          <span className="font-semibold text-foreground">
+            {formatMoney(amount)}
+          </span>{" "}
+          to a charity the other chose.
         </p>
         {t.message && (
-          <blockquote className="border-l-4 pl-3 text-sm italic">
-            {t.message}
+          <blockquote className="mt-5 border-l-2 border-gold pl-4 font-heading text-lg italic">
+            &ldquo;{t.message}&rdquo;
+            <footer className="mt-1 font-sans text-sm text-muted-foreground not-italic">
+              {isCreator ? "Your note" : t.other.name}
+            </footer>
           </blockquote>
+        )}
+
+        {t.status !== "declined" && (
+          <ol className="mt-8 grid grid-cols-4 gap-2" aria-label="Progress">
+            {STEPS.map((s, i) => (
+              <li key={s} className="flex flex-col gap-2">
+                <span
+                  className={cn(
+                    "h-1.5 rounded-full",
+                    i <= step ? "bg-primary" : "bg-border"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-xs",
+                    i <= step
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {s}
+                </span>
+              </li>
+            ))}
+          </ol>
         )}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {[
-          { who: t.me, label: "You", charity: myCharity },
-          { who: t.other, label: t.other.name, charity: theirCharity },
-        ].map(({ who, label, charity }, i) => (
-          <div key={i} className="rounded-2xl border p-4 text-sm">
-            <div className="font-medium">{i === 0 ? `You (${who.name})` : label}</div>
-            <div className="text-muted-foreground">
-              {t.status === "pending" && !charity
-                ? "Charity to be chosen"
-                : charity
-                  ? `Donates ${formatMoney(amount)} to ${charity.name}`
-                  : "Charity to be chosen"}
+      {/* Participants */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        {people.map((p) => (
+          <div key={p.label} className="rounded-3xl border bg-card p-6">
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-full bg-primary font-heading text-lg font-semibold text-primary-foreground">
+                {p.name.charAt(0).toUpperCase()}
+              </span>
+              <div>
+                <div className="font-medium">{p.name}</div>
+                <div className="text-xs text-muted-foreground">{p.label}</div>
+              </div>
+            </div>
+            <div className="my-4 h-px bg-border" />
+            <div className="text-xs tracking-wide text-muted-foreground uppercase">
+              Donates
+            </div>
+            <div className="mt-1 font-heading text-2xl font-semibold">
+              {formatMoney(amount)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {p.charity
+                ? `to ${p.charity.name}`
+                : "to a charity yet to be chosen"}
             </div>
             {(t.status === "accepted" || t.status === "completed") && (
-              <div className="mt-1">
-                {who.donatedAt ? "Donation reported" : "Not donated yet"}
+              <div
+                className={cn(
+                  "mt-4 w-fit rounded-full px-3 py-1 text-xs",
+                  p.donated
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                {p.donated ? "Donation reported" : "Not donated yet"}
               </div>
             )}
           </div>
         ))}
       </div>
 
-      {showInvite && (
-        <ShareInvite
-          token={token}
-          invite={invite}
-          recipientName={t.other.name}
-          creatorName={t.me.name}
-        />
-      )}
-      {isCreator && t.status === "pending" && !showInvite && (
-        <p className="rounded-lg bg-muted p-3 text-sm">
-          Waiting for {t.other.name} to reply. Your invite link was shown when
-          you created this Treaty.
-        </p>
-      )}
-
-      {!isCreator && t.status === "pending" && (
-        <RespondForm
-          token={token}
-          creatorName={t.other.name}
-          proposedDollars={t.proposedAmount / 100}
-        />
-      )}
-
-      {t.status === "accepted" && myCharity && (
-        <DonatePanel
-          token={token}
-          amountLabel={formatMoney(amount)}
-          charityName={myCharity.name}
-          donateUrl={myCharity.donateUrl}
-          donated={!!t.me.donatedAt}
-        />
-      )}
-
-      {t.status === "completed" && (
-        <div className="flex flex-col gap-3 rounded-2xl bg-muted p-5">
-          <h2 className="font-heading text-xl font-semibold">Treaty complete</h2>
-          <p>
-            You and {t.other.name} each gave {formatMoney(amount)}, that is{" "}
-            {formatMoney(amount * 2)} to charity instead of two gifts nobody
-            needed. Thank you.
+      <div className="mt-6 flex flex-col gap-6">
+        {showInvite && (
+          <ShareInvite
+            token={token}
+            invite={invite!}
+            recipientName={t.other.name}
+            creatorName={t.me.name}
+          />
+        )}
+        {isCreator && t.status === "pending" && !showInvite && (
+          <p className="rounded-2xl bg-muted p-4 text-sm">
+            Waiting for {t.other.name} to reply. Your invite link was shown when
+            you created this Treaty.
           </p>
-        </div>
-      )}
+        )}
 
-      {t.status === "declined" && (
-        <p className="rounded-lg bg-muted p-3 text-sm">
-          {isCreator
-            ? `${t.other.name} chose not to take part this time. No worries.`
-            : "You declined this Treaty. No worries."}
-        </p>
-      )}
+        {!isCreator && t.status === "pending" && (
+          <RespondForm
+            token={token}
+            creatorName={t.other.name}
+            proposedDollars={t.proposedAmount / 100}
+          />
+        )}
 
-      {(t.status === "completed" || t.status === "declined") && (
-        <div>
-          <Link
-            href="/create?ref=treaty"
-            className={cn(buttonVariants({ size: "lg" }))}
-          >
-            Make another Treaty
-          </Link>
-        </div>
-      )}
-    </div>
+        {t.status === "accepted" && myCharity && (
+          <DonatePanel
+            token={token}
+            amountLabel={formatMoney(amount)}
+            charityName={myCharity.name}
+            donateUrl={myCharity.donateUrl}
+            donated={!!t.me.donatedAt}
+          />
+        )}
+
+        {t.status === "completed" && (
+          <div className="rounded-3xl bg-forest-deep p-8 text-center text-primary-foreground dark:text-foreground">
+            <div className="text-4xl" aria-hidden>
+              🎉
+            </div>
+            <h2 className="mt-3 font-heading text-3xl font-semibold">
+              Treaty complete
+            </h2>
+            <p className="mx-auto mt-3 max-w-md leading-relaxed opacity-80">
+              You and {t.other.name} each gave {formatMoney(amount)}, that is{" "}
+              <span className="font-semibold text-gold">
+                {formatMoney(amount * 2)}
+              </span>{" "}
+              to charity instead of two gifts nobody needed. Thank you.
+            </p>
+          </div>
+        )}
+
+        {t.status === "declined" && (
+          <p className="rounded-2xl bg-muted p-4 text-sm">
+            {isCreator
+              ? `${t.other.name} chose not to take part this time. No worries.`
+              : "You declined this Treaty. No worries."}
+          </p>
+        )}
+
+        {(t.status === "completed" || t.status === "declined") && (
+          <div className="text-center">
+            <Link
+              href="/create?ref=treaty"
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "h-12 px-8 text-base"
+              )}
+            >
+              Make another Treaty
+            </Link>
+          </div>
+        )}
+      </div>
+    </PageShell>
   )
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 
+import { PageHeading, PageShell } from "@/components/page-shell"
 import { track } from "@/lib/track"
 
 import { CreateForm } from "./create-form"
@@ -16,14 +17,11 @@ export default async function Page({
   await track("create_started", { meta: { ref: ref?.slice(0, 20) ?? null } })
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-heading text-3xl font-bold">Make a Treaty</h1>
-        <p className="text-muted-foreground">
-          Propose skipping gifts. You will get a private link to share with them.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeading eyebrow="New Treaty" title="Propose a gift-free celebration">
+        Takes about two minutes. You will get a private link to share with them.
+      </PageHeading>
       <CreateForm />
-    </div>
+    </PageShell>
   )
 }

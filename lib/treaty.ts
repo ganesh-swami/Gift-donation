@@ -4,7 +4,7 @@ import { and, count, eq, gt, isNull } from "drizzle-orm"
 
 import { db, ensureSchema } from "./db"
 import { events, participants, treaties } from "./db/schema"
-import { generateToken, hashToken } from "./tokens"
+import { generateToken, hashToken, TOKEN_PATTERN } from "./tokens"
 import { track } from "./track"
 
 export type Role = "creator" | "recipient"
@@ -69,45 +69,53 @@ export async function createTreaty(input: CreateInput, ipHash?: string) {
     }
   }
 
-  const treatyId = randomUUID()
-  const creatorToken = generateToken()
-  const recipientToken = generateToken()
+  // Ids are short, so retry on the rare collision (token_hash is unique).
+  for (let attempt = 0; ; attempt++) {
+    const treatyId = randomUUID()
+    const creatorToken = generateToken()
+    const recipientToken = generateToken()
+    if (creatorToken === recipientToken) continue
+    try {
+      await db.batch([
+        db.insert(treaties).values({
+          id: treatyId,
+          occasion: input.occasion,
+          occasionLabel: input.occasionLabel || null,
+          proposedAmount: input.amount,
+          message: input.message || null,
+          status: "pending",
+          createdAt: Date.now(),
+        }),
+        db.insert(participants).values({
+          id: randomUUID(),
+          treatyId,
+          role: "creator",
+          name: input.creatorName,
+          email: input.creatorEmail,
+          tokenHash: hashToken(creatorToken),
+          charityId: input.charityId,
+        }),
+        db.insert(participants).values({
+          id: randomUUID(),
+          treatyId,
+          role: "recipient",
+          name: input.recipientName,
+          email: input.recipientEmail,
+          tokenHash: hashToken(recipientToken),
+        }),
+      ])
 
-  await db.batch([
-    db.insert(treaties).values({
-      id: treatyId,
-      occasion: input.occasion,
-      occasionLabel: input.occasionLabel || null,
-      proposedAmount: input.amount,
-      message: input.message || null,
-      status: "pending",
-      createdAt: Date.now(),
-    }),
-    db.insert(participants).values({
-      id: randomUUID(),
-      treatyId,
-      role: "creator",
-      name: input.creatorName,
-      email: input.creatorEmail,
-      tokenHash: hashToken(creatorToken),
-      charityId: input.charityId,
-    }),
-    db.insert(participants).values({
-      id: randomUUID(),
-      treatyId,
-      role: "recipient",
-      name: input.recipientName,
-      email: input.recipientEmail,
-      tokenHash: hashToken(recipientToken),
-    }),
-  ])
-
-  await track("treaty_created", { treatyId, role: "creator", ipHash })
-  return { treatyId, creatorToken, recipientToken }
+      await track("treaty_created", { treatyId, role: "creator", ipHash })
+      return { treatyId, creatorToken, recipientToken }
+    } catch (e) {
+      if (attempt >= 4) throw e
+    }
+  }
 }
 
 async function findByToken(token: string) {
-  if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null
+  token = token.toLowerCase()
+  if (!TOKEN_PATTERN.test(token)) return null
   await ensureSchema()
   const me = await db.query.participants.findFirst({
     where: eq(participants.tokenHash, hashToken(token)),
@@ -241,9 +249,7 @@ export async function reportDonation(token: string) {
     const done = await db
       .update(treaties)
       .set({ status: "completed", completedAt: Date.now() })
-      .where(
-        and(eq(treaties.id, r.treaty.id), eq(treaties.status, "accepted"))
-      )
+      .where(and(eq(treaties.id, r.treaty.id), eq(treaties.status, "accepted")))
     if (done.rowsAffected) {
       await track("treaty_completed", { treatyId: r.treaty.id })
     }

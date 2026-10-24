@@ -1,11 +1,15 @@
 import { z } from "zod"
 
 import { CHARITY_IDS } from "./charities"
-
-export const OCCASIONS = ["birthday", "anniversary", "festival", "other"] as const
+import { OCCASIONS } from "./occasions"
 
 const name = z.string().trim().min(1, "Please enter a name").max(60)
-const email = z.string().trim().toLowerCase().email("Enter a valid email").max(254)
+const email = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email("Enter a valid email")
+  .max(254)
 
 /** Dollars (as typed) -> integer cents, $1 to $10,000. */
 const amount = z.coerce
@@ -16,17 +20,22 @@ const amount = z.coerce
 
 const charityId = z.enum(CHARITY_IDS as [string, ...string[]], "Pick a charity")
 
-export const createSchema = z.object({
-  creatorName: name,
-  creatorEmail: email,
-  recipientName: name,
-  recipientEmail: email,
-  occasion: z.enum(OCCASIONS),
-  occasionLabel: z.string().trim().max(60).optional(),
-  amount,
-  charityId,
-  message: z.string().trim().max(500).optional(),
-})
+export const createSchema = z
+  .object({
+    creatorName: name,
+    creatorEmail: email,
+    recipientName: name,
+    recipientEmail: email,
+    occasion: z.enum(OCCASIONS),
+    occasionLabel: z.string().trim().max(60).optional(),
+    amount,
+    charityId,
+    message: z.string().trim().max(500).optional(),
+  })
+  .refine((d) => d.occasion !== "custom" || !!d.occasionLabel, {
+    path: ["occasionLabel"],
+    message: "Name your occasion",
+  })
 
 export const respondSchema = z.object({
   decision: z.enum(["accept", "decline"]),

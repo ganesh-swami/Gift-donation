@@ -18,8 +18,12 @@ export function CharityPicker({
   const visible = CHARITIES.filter((c) => cause === "All" || c.cause === cause)
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter by cause">
+    <div className="flex flex-col gap-4">
+      <div
+        className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+        role="group"
+        aria-label="Filter by cause"
+      >
         {causes.map((c) => (
           <button
             key={c}
@@ -27,23 +31,25 @@ export function CharityPicker({
             onClick={() => setCause(c)}
             aria-pressed={cause === c}
             className={cn(
-              "shrink-0 rounded-full border px-3 py-1 text-xs",
+              "shrink-0 rounded-full border px-4 py-1.5 text-sm transition-colors",
               cause === c
-                ? "bg-primary text-primary-foreground"
-                : "bg-background text-muted-foreground"
+                ? "border-primary bg-primary text-primary-foreground"
+                : "bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
             )}
           >
             {c}
           </button>
         ))}
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         {visible.map((c) => (
           <label
             key={c.id}
             className={cn(
-              "flex cursor-pointer flex-col gap-1 rounded-xl border p-3 text-sm transition-colors has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50",
-              value === c.id ? "border-primary bg-muted" : "hover:bg-muted/50"
+              "relative flex cursor-pointer flex-col gap-1 rounded-2xl border bg-background p-4 text-sm transition-all has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50",
+              value === c.id
+                ? "border-primary shadow-md ring-1 shadow-primary/10 ring-primary"
+                : "hover:border-primary/40"
             )}
           >
             <input
@@ -55,9 +61,29 @@ export function CharityPicker({
               className="sr-only"
               required
             />
-            <span className="font-medium">{c.name}</span>
-            <span className="text-xs text-muted-foreground">{c.cause}</span>
-            <span className="text-xs">{c.description}</span>
+            {value === c.id && (
+              <span className="absolute top-3 right-3 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="size-3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </span>
+            )}
+            <span className="pr-6 font-medium">{c.name}</span>
+            <span className="w-fit rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+              {c.cause}
+            </span>
+            <span className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {c.description}
+            </span>
           </label>
         ))}
       </div>

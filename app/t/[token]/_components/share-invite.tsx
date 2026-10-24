@@ -13,6 +13,9 @@ function track(token: string, meta: string) {
   })
 }
 
+const linkBtn =
+  "inline-flex h-10 items-center rounded-full border bg-background px-5 text-sm font-medium transition-colors hover:bg-muted"
+
 export function ShareInvite({
   token,
   invite,
@@ -46,33 +49,36 @@ export function ShareInvite({
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border p-4">
+    <div className="flex flex-col gap-5 rounded-3xl border bg-card p-6 shadow-sm sm:p-8">
       <div>
-        <h2 className="font-heading text-xl font-semibold">
+        <h2 className="font-heading text-2xl font-semibold">
           Send the invitation to {recipientName}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          We do not send email in this version. Share this private link yourself.
+        <p className="mt-1 text-sm text-muted-foreground">
+          We do not send email in this version. Share this short private link
+          yourself.
         </p>
       </div>
-      <input
-        readOnly
-        value={inviteUrl}
-        onFocus={(e) => e.currentTarget.select()}
-        aria-label="Invitation link"
-        className="w-full rounded-lg border bg-muted px-3 py-2 text-xs"
-      />
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={() => copy("invite")}>
-          {copied === "invite" ? "Copied" : "Copy invite link"}
+      <div className="flex items-center gap-2 rounded-2xl border bg-muted p-1.5 pl-4">
+        <input
+          readOnly
+          value={inviteUrl}
+          onFocus={(e) => e.currentTarget.select()}
+          aria-label="Invitation link"
+          className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none"
+        />
+        <Button onClick={() => copy("invite")} className="shrink-0">
+          {copied === "invite" ? "Copied" : "Copy"}
         </Button>
+      </div>
+      <div className="flex flex-wrap gap-2">
         {typeof navigator !== "undefined" && "share" in navigator && (
-          <Button variant="outline" onClick={share}>
+          <button type="button" className={linkBtn} onClick={share}>
             Share...
-          </Button>
+          </button>
         )}
         <a
-          className="inline-flex h-9 items-center rounded-4xl border px-3 text-sm"
+          className={linkBtn}
           href={`https://wa.me/?text=${encodeURIComponent(text)}`}
           target="_blank"
           rel="noopener noreferrer"
@@ -81,20 +87,23 @@ export function ShareInvite({
           WhatsApp
         </a>
         <a
-          className="inline-flex h-9 items-center rounded-4xl border px-3 text-sm"
+          className={linkBtn}
           href={`mailto:?subject=${encodeURIComponent("A gift-free idea")}&body=${encodeURIComponent(text)}`}
           onClick={() => track(token, "mailto")}
         >
           Email
         </a>
       </div>
-      <div className="rounded-lg bg-muted p-3 text-sm">
+      <div className="rounded-2xl bg-accent/40 p-4 text-sm">
         <strong>Save your own link.</strong> It is the only way back to this
         Treaty, and the invite link above is shown only now.
-        <div className="mt-2">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button size="sm" variant="secondary" onClick={() => copy("mine")}>
             {copied === "mine" ? "Copied" : "Copy my link"}
           </Button>
+          <span className="font-mono text-xs text-muted-foreground">
+            {myUrl}
+          </span>
         </div>
       </div>
     </div>
